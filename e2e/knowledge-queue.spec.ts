@@ -663,7 +663,7 @@ test("인사만 보내면 가운데 초안을 덮지 않는다", async ({ page }
   await page.getByRole("button", { name: "보내기" }).click();
   await expect(page.getByTestId("studio-agent-panel")).toContainText("ㅎㅇ. 초안 보고 있어");
   await expect(page.getByLabel("요약 페이지").getByRole("heading", { name: "검토할 지식 영상" })).toBeVisible();
-  await expect(page.getByLabel("요약 페이지").getByRole("paragraph").filter({ hasText: "원문 사실과 해석을 구분한 검토 요약입니다" })).toBeVisible();
+  await expect(page.getByLabel("요약 페이지").getByText("원문 사실과 해석을 구분한 검토 요약입니다.", { exact: true })).toBeVisible();
   await expect(page.getByLabel("요약 페이지").getByText("덮이면 안 됨")).toHaveCount(0);
   expect(studioPatches).toEqual([]);
 });
