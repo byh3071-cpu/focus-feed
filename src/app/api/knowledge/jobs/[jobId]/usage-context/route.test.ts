@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GET, PUT } from "./route";
 import { UsageContextConflictError } from "@/lib/knowledge-usage-context-store";
@@ -24,8 +26,8 @@ let single: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   vi.resetAllMocks();
-  process.env.FOCUS_FEED_USAGE_ROOT = "C:/usage-test";
-  process.env.FOCUS_FEED_BRAIN_ROOT = "C:/brain-test";
+  process.env.FOCUS_FEED_USAGE_ROOT = join(tmpdir(), "focus-usage-route-test");
+  process.env.FOCUS_FEED_BRAIN_ROOT = join(tmpdir(), "focus-brain-route-test");
   mocks.auth.mockResolvedValue({ status: "authenticated", user: { id: userId } });
   single = vi.fn().mockResolvedValue({ data: { id: jobId, title: "문서", source_url: "https://www.youtube.com/watch?v=abc_DEF-123", video_id: "abc_DEF-123", studio_draft: { markdown, revision: 1 }, approved_at: "2026-09-13T00:00:00Z", approval_intent_hash: intent, result_approval_intent_hash: intent }, error: null });
   const query = { eq: vi.fn(), maybeSingle: single }; query.eq.mockReturnValue(query); eq = query.eq;
@@ -40,7 +42,7 @@ describe("approved document usage context", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(eq.mock.calls).toEqual([["user_id", userId], ["status", "completed"], ["id", jobId]]);
-    expect(mocks.read).toHaveBeenCalledWith("C:/usage-test", userId, jobId, version);
+    expect(mocks.read).toHaveBeenCalledWith(join(tmpdir(), "focus-usage-route-test"), userId, jobId, version);
     expect(await response.json()).toEqual({ title: "문서", version, record });
   });
   it("distinguishes session expiry from provider failure without reading storage", async () => {
@@ -66,7 +68,7 @@ describe("approved document usage context", () => {
     const content = { savedReason: "프로젝트에 참고", links: [{ kind: "project", ref: "요한브레인" }] };
     const response = await PUT(request({ version, expectedRevision: 0, content }), context());
     expect(response.status).toBe(200);
-    expect(mocks.save).toHaveBeenCalledWith("C:/usage-test", userId, jobId, version, content, 0);
+    expect(mocks.save).toHaveBeenCalledWith(join(tmpdir(), "focus-usage-route-test"), userId, jobId, version, content, 0);
   });
   it("rejects a changed approval without copying the previous version's note", async () => {
     mocks.latest.mockResolvedValue([{ id: jobId, title: "문서", revision: 2, markdown: "새 승인", amendmentId, versionScope: "brain-verified" }]);

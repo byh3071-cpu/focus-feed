@@ -72,8 +72,7 @@ test("영상이 응답하지 않으면 원본 열기와 재시도를 제공한�
   await expect(page.locator(".knowledge-workspace")).toHaveAttribute("data-player-ready", "true");
 });
 
-test("실제 YouTube 재생과 작업실 시점 이동을 확인한다", async ({ page }) => {
-  test.skip(process.env.FOCUS_FEED_LIVE_VIDEO !== "1", "외부 YouTube 연결은 명시적으로 실행하는 로컬 검증");
+(process.env.FOCUS_FEED_LIVE_VIDEO === "1" ? test : test.skip)("실제 YouTube 재생과 작업실 시점 이동을 확인한다", async ({ page }) => {
   test.setTimeout(90_000);
   await page.unroute("**/embed/**");
   await page.unroute("https://www.youtube.com/iframe_api");

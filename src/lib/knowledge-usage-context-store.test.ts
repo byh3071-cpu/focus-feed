@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readdir, rm, symlink, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { readUsageContext, saveUsageContext, UsageContextConflictError } from "./knowledge-usage-context-store";
 
@@ -16,7 +16,7 @@ async function root() { const path = await mkdtemp(join(tmpdir(), "focus-usage-c
 afterEach(async () => {
   for (const path of roots.splice(0)) {
     const target = resolve(path); const parent = resolve(tmpdir());
-    if (!target.startsWith(parent + "\\") || !target.includes("focus-usage-context-")) throw new Error("unsafe fixture cleanup");
+    if (dirname(target) !== parent || !basename(target).startsWith("focus-usage-context-")) throw new Error("unsafe fixture cleanup");
     await rm(target, { recursive: true, force: true });
   }
 });
