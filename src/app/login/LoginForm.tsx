@@ -2,43 +2,71 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import {
+  oauthAuthorizeUrlReturnsToOrigin,
+  oauthCallbackUrl,
+  rememberOAuthNext,
+  sanitizeOAuthNext,
+} from "@/lib/oauth-redirect";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 export default function LoginForm({ next = "/" }: { next?: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const safeNext = sanitizeOAuthNext(next);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        router.replace(next);
+        router.replace(safeNext);
         router.refresh();
       }
     });
     return () => subscription.unsubscribe();
-  }, [router, next]);
+  }, [router, safeNext]);
 
   const handleGoogleLogin = async () => {
     setLoading(true);
+    setError(null);
     try {
       const supabase = getSupabaseBrowserClient();
       if (!supabase) return;
-      const origin = typeof window !== "undefined" ? window.location.origin : "";
-      await supabase.auth.signInWithOAuth({
+      const origin = window.location.origin;
+      rememberOAuthNext(safeNext);
+      const redirectTo = oauthCallbackUrl(origin);
+      const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: origin ? `${origin}/auth/callback?next=${encodeURIComponent(next)}` : undefined,
+          redirectTo,
+          skipBrowserRedirect: true,
         },
       });
+      if (oauthError) {
+        setError(oauthError.message);
+        return;
+      }
+      if (!data.url) {
+        setError("로그인 주소를 만들지 못했습니다. 잠시 후 다시 시도해 주세요.");
+        return;
+      }
+      if (!oauthAuthorizeUrlReturnsToOrigin(data.url, origin)) {
+        setError(
+          `구글 로그인 후 ${origin} 으로 돌아오지 않습니다. Supabase Redirect URLs에 ${redirectTo} 를 추가하세요.`,
+        );
+        return;
+      }
+      window.location.assign(data.url);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <button
+    <>
+      <button
       type="button"
       onClick={handleGoogleLogin}
       disabled={loading}
@@ -63,6 +91,12 @@ export default function LoginForm({ next = "/" }: { next?: string }) {
         />
       </svg>
       {loading ? "연결 중…" : "Google로 로그인"}
-    </button>
+      </button>
+      {error ? (
+        <p className="mt-3 text-center text-xs text-red-600" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </>
   );
 }

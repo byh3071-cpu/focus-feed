@@ -13,6 +13,11 @@ import { RadioLyricsView } from "./RadioLyricsView";
 import { getWatchProgress, saveWatchProgress } from "@/lib/watch-history";
 import { useBodyScrollLock } from "@/lib/body-scroll-lock";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
+import {
+  oauthAuthorizeUrlReturnsToOrigin,
+  oauthCallbackUrl,
+  rememberOAuthNext,
+} from "@/lib/oauth-redirect";
 import { ModalTransition } from "@/components/ui/ModalTransition";
 
 declare global {
@@ -685,10 +690,22 @@ export default function FloatingRadioPlayer() {
       setExpandedSummaryError("로그인 설정을 확인할 수 없습니다. 잠시 후 다시 시도해 주세요.");
       return;
     }
-    await supabase.auth.signInWithOAuth({
+    const origin = window.location.origin;
+    rememberOAuthNext(`${window.location.pathname}${window.location.search}`);
+    const redirectTo = oauthCallbackUrl(origin);
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo, skipBrowserRedirect: true },
     });
+    if (error || !data.url) {
+      setExpandedSummaryError("로그인을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+      return;
+    }
+    if (!oauthAuthorizeUrlReturnsToOrigin(data.url, origin)) {
+      setExpandedSummaryError(`Supabase Redirect URLs에 ${redirectTo} 를 추가하세요.`);
+      return;
+    }
+    window.location.assign(data.url);
   }, []);
 
   if (!radio) return null;

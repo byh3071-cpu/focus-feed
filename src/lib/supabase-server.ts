@@ -243,6 +243,12 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["content_states"]["Row"]>;
         Relationships: [];
       };
+      knowledge_amendments: {
+        Row: { id: string; user_id: string; job_id: string; amendment_revision: number; base_revision: number; base_intent_hash: string; markdown: string; created_at: string };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
       knowledge_jobs: {
         Row: {
           id: string;
@@ -324,6 +330,10 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      save_knowledge_amendment: {
+        Args: { p_user_id: string; p_job_id: string; p_expected_revision: number; p_base_revision: number; p_base_intent_hash: string; p_markdown: string };
+        Returns: { id: string; user_id: string; job_id: string; amendment_revision: number; base_revision: number; base_intent_hash: string; markdown: string; created_at: string };
+      };
       enqueue_knowledge_job: {
         Args: {
           p_source_type: string;
@@ -382,6 +392,33 @@ export type Database = {
           updated_at: string;
           capture_ready: boolean;
         }>;
+      };
+      begin_knowledge_approval: {
+        Args: {
+          p_user_id: string;
+          p_job_id: string;
+          p_intent_hash: string;
+        };
+        Returns: Database["public"]["Tables"]["knowledge_jobs"]["Row"];
+      };
+      patch_knowledge_studio_draft: {
+        Args: {
+          p_user_id: string;
+          p_job_id: string;
+          p_expected_result: unknown;
+          p_result: unknown;
+        };
+        Returns: Database["public"]["Tables"]["knowledge_jobs"]["Row"] | null;
+      };
+      begin_knowledge_studio_approval: {
+        Args: {
+          p_user_id: string;
+          p_job_id: string;
+          p_revision: number;
+          p_markdown: string;
+          p_intent_hash: string;
+        };
+        Returns: Database["public"]["Tables"]["knowledge_jobs"]["Row"];
       };
     };
   };

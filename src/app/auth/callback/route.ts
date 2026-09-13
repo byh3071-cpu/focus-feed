@@ -1,6 +1,13 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import {
+  clearOAuthNextCookieOptions,
+  OAUTH_NEXT_COOKIE,
+  oauthNextFromRequest,
+  oauthSuccessUrl,
+  originFromRequest,
+} from "@/lib/oauth-redirect";
 import type { Database } from "@/lib/supabase-server";
 
 function buildAuthRedirect(origin: string, params: Record<string, string | null | undefined>) {
@@ -19,8 +26,12 @@ function buildAuthRedirect(origin: string, params: Record<string, string | null 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
-  const next = requestUrl.searchParams.get("next") ?? "/";
-  const origin = requestUrl.origin;
+  const origin = originFromRequest(request);
+  const cookieStore = await cookies();
+  const next = oauthNextFromRequest(
+    requestUrl.searchParams.get("next"),
+    cookieStore.get(OAUTH_NEXT_COOKIE)?.value,
+  );
   const errorFromSupabase = requestUrl.searchParams.get("error");
   const errorDescription = requestUrl.searchParams.get("error_description");
 
@@ -58,10 +69,9 @@ export async function GET(request: Request) {
     return buildAuthRedirect(origin, { auth_error: "config" });
   }
 
-  const cookieStore = await cookies();
-  const targetPath = next.startsWith("/") ? next : `/${next}`;
-  const successUrl = `${origin}${targetPath}${targetPath.includes("?") ? "&" : "?"}auth_success=1`;
+  const successUrl = oauthSuccessUrl(origin, next);
   const response = NextResponse.redirect(successUrl);
+  response.cookies.set(OAUTH_NEXT_COOKIE, "", clearOAuthNextCookieOptions());
 
   const supabase = createServerClient<Database>(url, anonKey, {
     cookies: {

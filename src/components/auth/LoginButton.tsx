@@ -2,6 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import {
+  oauthAuthorizeUrlReturnsToOrigin,
+  oauthCallbackUrl,
+  rememberOAuthNext,
+} from "@/lib/oauth-redirect";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 interface UserInfo {
@@ -75,13 +80,25 @@ export function LoginButton() {
   const handleLogin = async () => {
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
-    const origin = typeof window !== "undefined" ? window.location.origin : "";
-    await supabase.auth.signInWithOAuth({
+    const origin = window.location.origin;
+    rememberOAuthNext(`${window.location.pathname}${window.location.search}`);
+    const redirectTo = oauthCallbackUrl(origin);
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: origin ? `${origin}/auth/callback` : undefined,
+        redirectTo,
+        skipBrowserRedirect: true,
       },
     });
+    if (error || !data.url) {
+      console.error("LoginButton signInWithOAuth error:", error);
+      return;
+    }
+    if (!oauthAuthorizeUrlReturnsToOrigin(data.url, origin)) {
+      console.error("LoginButton OAuth redirect_to is not this origin", { redirectTo, url: data.url });
+      return;
+    }
+    window.location.assign(data.url);
   };
 
   const handleLogout = async () => {

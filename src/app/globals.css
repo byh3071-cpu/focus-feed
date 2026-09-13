@@ -37,6 +37,7 @@
   --color-playback-accent: var(--playback-accent);
   --color-youtube-accent: var(--youtube-accent);
   --color-rss-accent: var(--rss-accent);
+  --color-studio-pane: var(--studio-pane-bg);
 
   /* 기존 컴포넌트 호환 별칭. 단계적으로 semantic token으로 이관한다. */
   --color-notion-bg: var(--notion-bg);
@@ -80,6 +81,18 @@
   --radius-xl: 1.5rem;
   --radius-full: 9999px;
 
+  /* Knowledge studio — 3 panes. Left=source, center=page, right=chat. */
+  --studio-source-min: 12.5rem;
+  --studio-source-max: 22.5rem;
+  --studio-rail-min: 18.75rem;
+  --studio-rail-max: 28.75rem;
+  --studio-gutter: 0.375rem;
+  --studio-page-x: 3rem;
+  --studio-page-y: 2rem;
+  --studio-measure: 40rem;
+  --studio-composer-radius: 0.75rem;
+  --studio-pane-bg: #f4f4f5;
+
   /* Motion */
   --motion-fast: 120ms;
   --motion-standard: 180ms;
@@ -110,6 +123,7 @@
   --playback-accent-muted: rgba(52, 211, 153, 0.12);
   --youtube-accent: #ff4e70;
   --rss-accent: #60a5fa;
+  --studio-pane-bg: #0c1020;
 
   --notion-bg: var(--surface-canvas);
   --notion-fg: var(--text-primary);
@@ -144,6 +158,43 @@ button,
 input,
 a {
   -webkit-tap-highlight-color: transparent;
+}
+
+@media (min-width: 1024px) {
+  .studio-source {
+    width: var(--studio-source-now);
+    flex-shrink: 0;
+  }
+
+  .studio-rail {
+    width: var(--studio-rail-now, 22.5rem);
+    flex-shrink: 0;
+  }
+}
+
+.studio-gutter {
+  position: relative;
+  flex: 0 0 var(--studio-gutter);
+  width: var(--studio-gutter);
+  cursor: col-resize;
+  background: transparent;
+  touch-action: none;
+}
+
+.studio-gutter::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: var(--border-subtle);
+}
+
+.studio-gutter:hover::before,
+.studio-gutter:focus-visible::before {
+  left: 0;
+  width: 100%;
 }
 
 /* Base typography for Notion feel */

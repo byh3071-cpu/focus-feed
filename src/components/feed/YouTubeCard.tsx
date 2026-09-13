@@ -226,8 +226,9 @@ export default function YouTubeCard({
       {item.id && (
         <div
           data-testid="youtube-card-actions"
-          className="flex shrink-0 flex-wrap items-center gap-2 py-2"
+          className="flex shrink-0 flex-col gap-1 py-2"
         >
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
           <SummarizeButton videoId={item.id} compact />
           <div className="flex items-center gap-0.5">
             <div data-testid="youtube-card-hover-actions" className="hidden items-center opacity-0 transition-opacity duration-[var(--motion-fast)] group-hover:opacity-100 group-focus-within:opacity-100 sm:flex">
@@ -258,8 +259,19 @@ export default function YouTubeCard({
               <MoreHorizontal className="h-4 w-4" />
             </button>
           </div>
+          </div>
+          <div data-testid="youtube-card-capture-action" className="min-w-0">
+            <KnowledgeCaptureButton
+              videoUrl={item.link}
+              title={item.title}
+              channelName={item.sourceName}
+              compact
+              job={knowledgeJob}
+              onJobChange={onKnowledgeJobChange}
+            />
+          </div>
           {menuOpen && (
-            <div id={`card-more-${item.id}`} className="mt-1.5 w-full basis-full space-y-2.5 rounded-xl border border-(--notion-border) bg-(--notion-bg) px-2.5 py-2 text-xs text-(--notion-fg) shadow-sm">
+            <div id={`card-more-${item.id}`} className="w-full space-y-2.5 rounded-xl border border-(--notion-border) bg-(--notion-bg) px-2.5 py-2 text-xs text-(--notion-fg) shadow-sm">
               {resumeHref && (
                 <a
                   href={resumeHref}
@@ -283,14 +295,6 @@ export default function YouTubeCard({
                   />
                 </div>
               )}
-              <KnowledgeCaptureButton
-                videoUrl={item.link}
-                title={item.title}
-                channelName={item.sourceName}
-                compact
-                job={knowledgeJob}
-                onJobChange={onKnowledgeJobChange}
-              />
               <div>
                 <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-(--notion-fg)/55 sm:text-xs">
                   더 알아보기

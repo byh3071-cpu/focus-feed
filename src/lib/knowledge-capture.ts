@@ -107,11 +107,11 @@ export interface KnowledgeReviewDetail {
 export type KnowledgeJobMap = Record<string, KnowledgeJobSummary>;
 
 const KNOWLEDGE_JOB_STATUS_LABELS: Record<KnowledgeJobStatus, string> = {
-  queued: "지식 대기열에 담김",
-  processing: "지식 처리 중",
+  queued: "담김",
+  processing: "처리 중",
   review_required: "검토 필요",
   approving: "승인 적재 중",
-  completed: "지식 처리 완료",
+  completed: "적재됨",
   action_required: "조치 필요",
   failed: "처리 실패",
   cancelled: "처리 취소",
@@ -119,6 +119,58 @@ const KNOWLEDGE_JOB_STATUS_LABELS: Record<KnowledgeJobStatus, string> = {
 
 export function knowledgeJobStatusLabel(status: KnowledgeJobStatus): string {
   return KNOWLEDGE_JOB_STATUS_LABELS[status];
+}
+
+export function knowledgeJobStudioPath(jobId: string): string {
+  return `/knowledge?job=${encodeURIComponent(jobId)}`;
+}
+
+export function knowledgeJobCanOpenStudio(status: KnowledgeJobStatus): boolean {
+  return status === "review_required" || status === "approving" || status === "completed";
+}
+
+export function knowledgeQueueOpenLabel(status: KnowledgeJobStatus): string | null {
+  if (status === "review_required") return "작업실 열기";
+  if (status === "approving" || status === "completed") return "작업실 보기";
+  return null;
+}
+
+export type KnowledgeCaptureAction =
+  | { kind: "capture" | "retry" | "busy"; label: string; compactLabel: string }
+  | { kind: "open"; label: string; compactLabel: string; href: string };
+
+export function knowledgeCaptureAction(job: KnowledgeJobSummary | null | undefined): KnowledgeCaptureAction {
+  if (!job) {
+    return { kind: "capture", label: "지식으로 담기", compactLabel: "담기" };
+  }
+  if (!job.captureReady) {
+    return { kind: "retry", label: "처리 준비 다시 시도", compactLabel: "다시 시도" };
+  }
+  if (knowledgeJobCanOpenStudio(job.status)) {
+    return {
+      kind: "open",
+      label: knowledgeQueueOpenLabel(job.status) ?? knowledgeJobStatusLabel(job.status),
+      compactLabel: job.status === "review_required"
+        ? "검토"
+        : job.status === "completed"
+          ? "적재됨"
+          : "적재 중",
+      href: knowledgeJobStudioPath(job.id),
+    };
+  }
+  if (job.status === "action_required" || job.status === "failed") {
+    return {
+      kind: "open",
+      label: knowledgeJobStatusLabel(job.status),
+      compactLabel: "조치",
+      href: "/knowledge",
+    };
+  }
+  return {
+    kind: "busy",
+    label: knowledgeJobStatusLabel(job.status),
+    compactLabel: knowledgeJobStatusLabel(job.status),
+  };
 }
 
 export function knowledgeJobIsOpen(status: KnowledgeJobStatus): boolean {
@@ -242,7 +294,9 @@ export function parseKnowledgeReviewDetail(input: {
   qualityScore: number | null;
   qualityReport: unknown;
 }): KnowledgeReviewDetail | undefined {
-  if (input.status !== "review_required" && input.status !== "approving") return undefined;
+  if (input.status !== "review_required" && input.status !== "approving" && input.status !== "completed") {
+    return undefined;
+  }
   const result = reviewRecord(input.result);
   const draft = reviewRecord(result?.draft);
   const summary = reviewText(draft?.summary);
