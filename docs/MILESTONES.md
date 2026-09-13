@@ -158,3 +158,7 @@ tags: [focus-feed, roadmap, milestones]
 | 2026-07-12 | M10 후속: Tailwind dark 변형을 next-themes 클래스에 통일, RSS 카드 대비·중복 배지 수정, UI/UX 시각 보고서 |
 | 2026-07-16 | M11 기준선·main 동기화 후 실행 작업대장 도입. 홈·영상 모드·플레이어·앱 셸의 구현 상태와 Preview·라디오·최종 QA 잔여 Task를 분리 |
 | 2026-07-27 | M12 지식 캡처·대기열 P0 코드 계약 추가. 운영 DB/NotebookLM/iPhone 실기기 canary는 사람 승인 전 미실행. |
+
+## 작업실 통합 (2026-09-13)
+
+영상·문서·대화를 연결한 작업실과 승인 자료 조회·수정안·활용 메모 기반을 추가했다. 상세 범위와 한계는 docs/WORKSPACE_RELEASE.md를 따른다. 별도의 요금제·팀 제거와 문서 이동은 포함하지 않는다.
