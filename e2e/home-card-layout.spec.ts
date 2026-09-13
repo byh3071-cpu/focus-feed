@@ -46,10 +46,15 @@ test.describe("YouTube-style home card body", () => {
     expect(thumbnail!.width / thumbnail!.height).toBeCloseTo(16 / 9, 2);
 
     const summaryAction = cards.nth(0).getByTestId("youtube-card-summary-action");
+    const captureAction = cards.nth(0).getByTestId("youtube-card-capture-action");
     const summaryActionBox = await summaryAction.boundingBox();
     expect(summaryActionBox).not.toBeNull();
     expect(summaryActionBox!.height).toBeGreaterThanOrEqual(44);
     expect(summaryActionBox!.width).toBeLessThan(first!.width / 2);
+    await expect(captureAction).toBeVisible();
+    const captureBox = await captureAction.boundingBox();
+    expect(captureBox).not.toBeNull();
+    expect(captureBox!.height).toBeGreaterThanOrEqual(44);
     await summaryAction.click();
     const sheet = page.getByTestId("ai-summary-panel");
     await expect(sheet).toBeVisible();

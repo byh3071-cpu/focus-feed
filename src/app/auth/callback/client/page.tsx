@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
+import { oauthSuccessUrl, sanitizeOAuthNext } from "@/lib/oauth-redirect";
 
 /**
  * 서버 콜백에서 PKCE code_verifier를 읽지 못해 "Unable to exchange external code"가 났을 때
@@ -15,7 +16,7 @@ function AuthCallbackClientContent() {
 
   useEffect(() => {
     const code = searchParams.get("code");
-    const next = searchParams.get("next") ?? "/";
+    const next = sanitizeOAuthNext(searchParams.get("next"));
 
     if (!code) {
       router.replace("/?auth_error=no_code");
@@ -41,10 +42,7 @@ function AuthCallbackClientContent() {
           return;
         }
         setStatus("success");
-        const path = next.startsWith("/") ? next : `/${next}`;
-        const sep = path.includes("?") ? "&" : "?";
-        const url = `${path}${sep}auth_success=1`;
-        window.location.replace(url);
+        window.location.replace(oauthSuccessUrl(window.location.origin, next));
       } catch (e) {
         if (!mounted) return;
         console.error("Client auth exchange exception:", e);

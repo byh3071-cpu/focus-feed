@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import CaptureDeepLinkClient from "./CaptureDeepLinkClient";
 
 export const metadata: Metadata = {
-  title: "지식 캡처 — Focus Feed",
+  title: "지식으로 담기 — Focus Feed",
   robots: { index: false },
 };
 

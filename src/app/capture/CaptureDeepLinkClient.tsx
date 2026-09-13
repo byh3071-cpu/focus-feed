@@ -7,8 +7,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Brain, Check, ClipboardPaste, Loader2 } from "lucide-react";
 import {
   extractYouTubeVideoId,
+  knowledgeCaptureAction,
+  knowledgeJobCanOpenStudio,
   knowledgeJobIsOpen,
   knowledgeJobStatusLabel,
+  knowledgeQueueOpenLabel,
   mergeKnowledgeJobMaps,
   notifyKnowledgeJobsChanged,
   type KnowledgeJobSummary,
@@ -36,6 +39,17 @@ function extractSharedUrl(params: URLSearchParams): string {
     if (match) return match[0];
   }
   return "";
+}
+
+function captureDoneCta(job: KnowledgeJobSummary): { href: string; label: string } {
+  const action = knowledgeCaptureAction(job);
+  if (action.kind === "open") {
+    return {
+      href: action.href,
+      label: knowledgeQueueOpenLabel(job.status) ?? action.label,
+    };
+  }
+  return { href: "/knowledge", label: "지식함 보기" };
 }
 
 export default function CaptureDeepLinkClient() {
@@ -183,13 +197,13 @@ export default function CaptureDeepLinkClient() {
         if (data?.job) notifyKnowledgeJobsChanged();
         setState({
           kind: "error",
-          message: data?.error ?? "지식 대기열 접수에 실패했습니다.",
+          message: data?.error ?? "지식함에 담지 못했어요.",
           job: data?.job,
         });
         return;
       }
       if (!data?.job) {
-        setState({ kind: "error", message: "지식 대기열 응답을 확인하지 못했습니다." });
+        setState({ kind: "error", message: "지식함 응답을 확인하지 못했어요." });
         return;
       }
       setState({ kind: "done", created: data.created !== false, job: data.job });
@@ -217,7 +231,7 @@ export default function CaptureDeepLinkClient() {
         </button>
         <div className="min-w-0">
           <h1 className="text-xl font-bold">지식으로 담기</h1>
-          <p className="mt-0.5 truncate text-sm text-(--text-secondary)">영상 링크를 확인하고 지식함에 저장해요.</p>
+          <p className="mt-0.5 truncate text-sm text-(--text-secondary)">영상 링크를 확인하고 지식함에 담아요.</p>
         </div>
       </header>
 
@@ -225,18 +239,22 @@ export default function CaptureDeepLinkClient() {
         <section className="rounded-2xl border border-(--notion-border) bg-(--surface-raised) p-5 shadow-[var(--shadow-xs)]">
           <div className="flex items-center gap-2 font-semibold">
             <Check size={18} aria-hidden />
-            {state.created ? "지식 대기열에 담았어요." : "이미 지식 대기열에 있어요."}
+            {state.created ? "지식함에 담았어요." : "이미 지식함에 있어요."}
           </div>
           <p className="mt-2 text-sm font-medium text-(--notion-fg)">
             현재 상태: {knowledgeJobStatusLabel(state.job.status)}
           </p>
           <p className="mt-3 text-sm leading-relaxed text-(--notion-fg)/65">
-            이제 worker가 NotebookLM 자료화와 품질 검사를 처리합니다. 사람 확인이 필요할 때만
-            검토 대기 상태로 올립니다.
+            {knowledgeJobCanOpenStudio(state.job.status)
+              ? "작업실에서 초안을 확인하고 브레인에 승인할 수 있어요."
+              : "집 컴퓨터가 초안을 만들면 지식함에서 작업실이 열려요."}
           </p>
           <div className="mt-4 grid gap-2 sm:flex sm:flex-wrap">
-            <Link href="/knowledge" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-(--notion-fg) px-4 py-2 text-sm font-semibold text-(--notion-bg) hover:opacity-90">
-              지식함 보기
+            <Link
+              href={captureDoneCta(state.job).href}
+              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-(--notion-fg) px-4 py-2 text-sm font-semibold text-(--notion-bg) hover:opacity-90"
+            >
+              {captureDoneCta(state.job).label}
             </Link>
             <Link href="/" className="inline-flex min-h-11 items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold text-(--text-secondary) hover:bg-(--notion-hover)">
               Focus Feed로 돌아가기
@@ -288,7 +306,7 @@ export default function CaptureDeepLinkClient() {
                 </div>
               ) : (
                 <p className="px-4 py-3 text-xs text-(--notion-fg)/55">
-                  영상 정보는 저장할 때 다시 확인합니다. 이 영상만 대기열에 담습니다.
+                  영상 정보는 담을 때 다시 확인합니다. 이 영상만 지식함에 담습니다.
                 </p>
               )}
             </div>
@@ -299,7 +317,7 @@ export default function CaptureDeepLinkClient() {
               <p>{state.message}</p>
               {state.job && (
                 <Link href="/knowledge" className="mt-2 inline-flex min-h-11 items-center font-semibold underline underline-offset-4">
-                  접수된 작업을 지식 대기열에서 보기
+                  지식함에서 보기
                 </Link>
               )}
             </div>
@@ -307,7 +325,8 @@ export default function CaptureDeepLinkClient() {
 
           <button
             type="button"
-            onClick={capture}
+            data-testid="knowledge-capture-submit"
+            onClick={() => void capture()}
             disabled={!validVideo || state.kind === "submitting"}
             className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-(--notion-fg) px-4 py-2 text-sm font-semibold text-(--notion-bg) hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45"
           >

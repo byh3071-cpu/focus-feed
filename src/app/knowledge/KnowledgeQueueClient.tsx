@@ -2,13 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   AlertCircle,
   ArrowLeft,
   Brain,
   CheckCircle2,
-  ChevronDown,
   Clock3,
   Loader2,
   RefreshCw,
@@ -16,24 +15,31 @@ import {
 import {
   knowledgeJobActionMessage,
   knowledgeJobStatusLabel,
+  knowledgeQueueOpenLabel,
   type KnowledgeJobStatus,
   type KnowledgeJobSummary,
-  type KnowledgeReviewDetail,
 } from "@/lib/knowledge-capture";
-import KnowledgeReviewPanel from "./KnowledgeReviewPanel";
+import KnowledgeStudio from "./KnowledgeStudio";
+import { loadDeferredJobIds, storeDeferredJobIds } from "@/lib/knowledge-studio";
 
 type QueueSection = "needs_action" | "active" | "completed";
 
 const SECTION_META: Record<QueueSection, { label: string; description: string }> = {
-  needs_action: { label: "확인 필요", description: "검토하거나 조치할 항목" },
-  active: { label: "처리 중", description: "대기 중이거나 처리 중인 항목" },
-  completed: { label: "완료", description: "Brain 적재까지 끝난 항목" },
+  needs_action: { label: "확인 필요", description: "검토 필요와 조치 필요를 모은 목록" },
+  active: { label: "처리 중", description: "담겼거나 초안을 만드는 중" },
+  completed: { label: "완료", description: "브레인에 적재된 항목" },
 };
 
 function sectionForStatus(status: KnowledgeJobStatus): QueueSection {
   if (status === "review_required" || status === "action_required" || status === "failed") return "needs_action";
   if (status === "completed" || status === "cancelled") return "completed";
   return "active";
+}
+
+function needsActionRank(status: KnowledgeJobStatus): number {
+  if (status === "review_required" || status === "approving") return 0;
+  if (status === "action_required") return 1;
+  return 2;
 }
 
 function StatusIcon({ status }: { status: KnowledgeJobStatus }) {
@@ -45,16 +51,15 @@ function StatusIcon({ status }: { status: KnowledgeJobStatus }) {
 
 export default function KnowledgeQueueClient() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const jobId = searchParams.get("job")?.trim() || null;
   const [jobs, setJobs] = useState<KnowledgeJobSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [authRequired, setAuthRequired] = useState(false);
   const [activeSection, setActiveSection] = useState<QueueSection>("needs_action");
+  const [deferredIds, setDeferredIds] = useState<string[]>([]);
   const initialSectionSelected = useRef(false);
-  const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
-  const [reviews, setReviews] = useState<Record<string, KnowledgeReviewDetail>>({});
-  const [reviewLoadingJobId, setReviewLoadingJobId] = useState<string | null>(null);
-  const [reviewErrors, setReviewErrors] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -80,13 +85,25 @@ export default function KnowledgeQueueClient() {
     }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    if (jobId) return;
+    void load();
+    setDeferredIds(loadDeferredJobIds());
+  }, [jobId, load]);
 
   const groupedJobs = useMemo(() => ({
-    needs_action: jobs.filter((job) => sectionForStatus(job.status) === "needs_action"),
+    needs_action: jobs
+      .filter((job) => sectionForStatus(job.status) === "needs_action")
+      .filter((job) => !(job.status === "review_required" && deferredIds.includes(job.id)))
+      .slice()
+      .sort((a, b) => {
+        const rank = needsActionRank(a.status) - needsActionRank(b.status);
+        if (rank !== 0) return rank;
+        return Date.parse(b.createdAt) - Date.parse(a.createdAt);
+      }),
     active: jobs.filter((job) => sectionForStatus(job.status) === "active"),
     completed: jobs.filter((job) => sectionForStatus(job.status) === "completed"),
-  }), [jobs]);
+  }), [deferredIds, jobs]);
 
   useEffect(() => {
     if (loading || initialSectionSelected.current) return;
@@ -98,40 +115,18 @@ export default function KnowledgeQueueClient() {
   }, [activeSection, groupedJobs, jobs.length, loading]);
 
   const goBack = useCallback(() => {
-    if (window.history.length > 1) router.back();
-    else router.push("/");
+    router.push("/");
   }, [router]);
 
-  const openReview = useCallback(async (job: KnowledgeJobSummary) => {
-    setExpandedJobId(job.id);
-    if (reviews[job.id] ?? job.review) return;
-
-    setReviewLoadingJobId(job.id);
-    setReviewErrors((current) => ({ ...current, [job.id]: "" }));
-    try {
-      const response = await fetch(`/api/knowledge/jobs/${encodeURIComponent(job.id)}/review`, { cache: "no-store" });
-      const data = await response.json().catch(() => null) as { review?: KnowledgeReviewDetail; error?: string } | null;
-      if (!response.ok || !data?.review) throw new Error(data?.error ?? "검토 내용을 불러오지 못했어요.");
-      setReviews((current) => ({ ...current, [job.id]: data.review! }));
-    } catch (cause) {
-      setReviewErrors((current) => ({
-        ...current,
-        [job.id]: cause instanceof Error ? cause.message : "검토 내용을 불러오지 못했어요.",
-      }));
-    } finally {
-      setReviewLoadingJobId((current) => current === job.id ? null : current);
-    }
-  }, [reviews]);
-
-  const toggleReview = useCallback((job: KnowledgeJobSummary) => {
-    if (expandedJobId === job.id) {
-      setExpandedJobId(null);
-      return;
-    }
-    void openReview(job);
-  }, [expandedJobId, openReview]);
+  const openStudio = useCallback((id: string) => {
+    router.push(`/knowledge?job=${encodeURIComponent(id)}`);
+  }, [router]);
 
   const visibleJobs = groupedJobs[activeSection];
+  const reviewReadyCount = groupedJobs.needs_action.filter((job) => job.reviewAvailable).length;
+  const hiddenDeferredCount = jobs.filter((job) => job.status === "review_required" && deferredIds.includes(job.id)).length;
+
+  if (jobId) return <KnowledgeStudio key={jobId} jobId={jobId} />;
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-3xl px-3 pb-10 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-5 sm:py-8">
@@ -146,7 +141,8 @@ export default function KnowledgeQueueClient() {
         </button>
         <div className="min-w-0 flex-1">
           <h1 className="text-xl font-bold sm:text-2xl">지식함</h1>
-          <p className="mt-0.5 truncate text-sm text-(--text-secondary)">담은 영상의 처리와 검토 상태</p>
+          <p className="mt-0.5 truncate text-sm text-(--text-secondary)">담은 영상의 처리와 작업실 입구</p>
+          <Link href="/knowledge/usage" className="mt-1 inline-block text-sm underline">활용 메모 찾기</Link>
         </div>
         <button
           type="button"
@@ -169,16 +165,14 @@ export default function KnowledgeQueueClient() {
                 key={section}
                 type="button"
                 aria-pressed={selected}
-                onClick={() => {
-                  setActiveSection(section);
-                  setExpandedJobId(null);
-                }}
+                aria-label={`${SECTION_META[section].label} ${groupedJobs[section].length}개`}
+                onClick={() => setActiveSection(section)}
                 className={`min-h-11 rounded-xl px-2 text-sm font-semibold transition-colors ${selected
                   ? "bg-(--surface-raised) text-(--text-primary) shadow-[var(--shadow-xs)]"
                   : "text-(--text-secondary) hover:text-(--text-primary)"}`}
               >
                 {SECTION_META[section].label}
-                <span className="ml-1 tabular-nums" aria-label={`${groupedJobs[section].length}개`}>
+                <span className="ml-1 tabular-nums" aria-hidden="true">
                   {groupedJobs[section].length}
                 </span>
               </button>
@@ -192,8 +186,8 @@ export default function KnowledgeQueueClient() {
           <div className="flex min-h-52 flex-col items-center justify-center gap-3 rounded-2xl border border-(--border-subtle) bg-(--surface-raised) px-5 text-center">
             <Brain size={28} aria-hidden="true" />
             <div>
-              <p className="font-semibold">로그인하면 검토 내용을 볼 수 있어요.</p>
-              <p className="mt-1 text-sm text-(--text-secondary)">요약과 타임스탬프 근거는 본인에게만 표시됩니다.</p>
+              <p className="font-semibold">로그인하면 지식함을 볼 수 있어요.</p>
+              <p className="mt-1 text-sm text-(--text-secondary)">담은 영상과 작업실은 본인에게만 표시됩니다.</p>
             </div>
             <Link href="/login?next=/knowledge" className="inline-flex min-h-11 items-center rounded-xl border border-(--border-subtle) px-4 text-sm font-semibold hover:bg-(--surface-subtle)">
               로그인하기
@@ -223,15 +217,46 @@ export default function KnowledgeQueueClient() {
             <CheckCircle2 size={24} aria-hidden="true" />
             <p className="mt-2 font-semibold">{SECTION_META[activeSection].label} 항목이 없어요.</p>
             <p className="mt-1 text-sm text-(--text-secondary)">{SECTION_META[activeSection].description}</p>
+            {activeSection === "needs_action" && hiddenDeferredCount > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  storeDeferredJobIds([]);
+                  setDeferredIds([]);
+                }}
+                className="mt-4 min-h-11 rounded-[var(--radius-md)] border border-(--border-subtle) px-3 text-xs font-semibold hover:bg-(--surface-subtle)"
+              >
+                보류한 검토 {hiddenDeferredCount}개 다시 보기
+              </button>
+            )}
           </div>
         ) : (
+          <>
+            {activeSection === "needs_action" && (
+              <div className="mb-3 space-y-2 text-sm leading-6 text-(--text-secondary)">
+                <p>
+                  {reviewReadyCount > 0
+                    ? `검토 필요는 작업실에서 고칩니다. 지금 ${reviewReadyCount}개.`
+                    : "지금은 검토 필요 항목이 없어요. 아래는 다음 행동이 필요한 항목입니다."}
+                </p>
+                {hiddenDeferredCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      storeDeferredJobIds([]);
+                      setDeferredIds([]);
+                    }}
+                    className="min-h-11 rounded-[var(--radius-md)] border border-(--border-subtle) px-3 text-xs font-semibold hover:bg-(--surface-subtle)"
+                  >
+                    보류한 검토 {hiddenDeferredCount}개 다시 보기
+                  </button>
+                )}
+              </div>
+            )}
           <ul className="space-y-3">
             {visibleJobs.map((job) => {
               const actionMessage = knowledgeJobActionMessage(job);
-              const expanded = expandedJobId === job.id;
               const sourceUrl = job.sourceUrl ?? `https://www.youtube.com/watch?v=${job.videoId}`;
-              const review = reviews[job.id] ?? job.review;
-              const reviewAvailable = job.reviewAvailable || Boolean(review);
               const section = sectionForStatus(job.status);
 
               return (
@@ -261,47 +286,30 @@ export default function KnowledgeQueueClient() {
                         {actionMessage && (
                           <p className="mt-3 rounded-xl bg-amber-500/10 px-3 py-2.5 text-sm leading-6 text-amber-800 dark:text-amber-200">{actionMessage}</p>
                         )}
+                        {job.status === "completed" && (
+                          <p className="mt-3 text-sm text-(--text-secondary)">브레인에 적재됨</p>
+                        )}
+                        {(job.status === "queued" || job.status === "processing") && (
+                          <p className="mt-3 text-sm text-(--text-secondary)">초안이 준비되면 작업실이 열려요.</p>
+                        )}
                       </div>
                     </div>
 
-                    {reviewAvailable && (
+                    {knowledgeQueueOpenLabel(job.status) && (
                       <button
                         type="button"
-                        aria-expanded={expanded}
-                        aria-controls={`knowledge-review-${job.id}`}
-                        onClick={() => toggleReview(job)}
-                        className="mt-4 inline-flex min-h-11 w-full items-center justify-between rounded-xl border border-(--border-subtle) px-4 text-sm font-semibold hover:bg-(--surface-subtle) focus-visible:outline-2 focus-visible:outline-offset-2 sm:w-auto sm:gap-3"
+                        onClick={() => openStudio(job.id)}
+                        className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-(--border-subtle) px-4 text-sm font-semibold hover:bg-(--surface-subtle) focus-visible:outline-2 focus-visible:outline-offset-2 sm:w-auto"
                       >
-                        {expanded ? "검토 내용 닫기" : "요약과 근거 확인"}
-                        <ChevronDown size={16} className={expanded ? "rotate-180" : ""} aria-hidden="true" />
+                        {knowledgeQueueOpenLabel(job.status)}
                       </button>
-                    )}
-
-                    {expanded && reviewLoadingJobId === job.id && (
-                      <div role="status" className="mt-3 flex min-h-20 items-center gap-2 text-sm text-(--text-secondary)">
-                        <Loader2 size={16} className="animate-spin" aria-hidden="true" /> 검토 내용을 불러오는 중
-                      </div>
-                    )}
-
-                    {expanded && reviewErrors[job.id] && reviewLoadingJobId !== job.id && (
-                      <div role="alert" className="mt-3 rounded-xl bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300">
-                        <p>{reviewErrors[job.id]}</p>
-                        <button type="button" onClick={() => void openReview(job)} className="mt-2 min-h-11 rounded-lg border border-current px-3 text-xs font-semibold">
-                          다시 불러오기
-                        </button>
-                      </div>
-                    )}
-
-                    {review && expanded && (
-                      <div id={`knowledge-review-${job.id}`}>
-                        <KnowledgeReviewPanel review={review} sourceUrl={sourceUrl} jobId={job.id} jobStatus={job.status} />
-                      </div>
                     )}
                   </article>
                 </li>
               );
             })}
           </ul>
+          </>
         )}
       </section>
     </main>

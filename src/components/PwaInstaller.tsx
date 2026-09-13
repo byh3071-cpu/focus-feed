@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
+import { rewriteBindAddressLocation } from "@/lib/oauth-redirect";
 
 export default function PwaInstaller() {
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (rewriteBindAddressLocation()) return;
     if (!("serviceWorker" in navigator)) return;
 
     // 개발 환경에서는 서비스워커를 등록하지 않는다.
