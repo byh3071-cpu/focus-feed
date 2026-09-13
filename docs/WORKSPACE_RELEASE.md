@@ -24,6 +24,8 @@ SQL 원본은 `docs/supabase-migrations/025_knowledge_studio_approval.sql`과 `s
 
 ## 검증 근거
 
+릴리스 보안 검사에서 기존 의존성의 취약점을 확인해 Next.js와 대응 lint 설정을 16.3.5로 맞추고 호환 범위의 의존성을 갱신했다. 갱신 후 `npm audit`는 취약점 0건이다. Windows 서버에 영향을 주는 문제와 수정 버전은 [공식 보안 공지](https://github.com/advisories/GHSA-p293-qw3h-jr36)를 따른다. 로컬 대화 서버는 HTTP·WebSocket 요청 출처를 검증하고 Windows 실행에 셸을 사용하지 않는다.
+
 원본 작업 폴더에서 전체 verify:focus-feed가 통과했다. 단위 테스트 519개 통과·1개 건너뜀, 타입·빌드·시크릿·VHK 검사 통과, 기존 lint 경고 4개다. 신규 작업실 조작과 영상 실패 복구·실제 재생 E2E 4개도 통과했다.
 
 실제 영상 검사는 job만 fixture로 제공하며 YouTube iframe/API/미디어는 실제 서버에 연결한다. 보기 전환 직후 앱 버튼 클릭부터 재생 시간 증가, 02:01 탐색, 메모 시점 연결, 화면 전환 중 위치 보존, 일시정지를 확인한다. 고정 1.5초 대기나 키보드 대체를 사용하지 않는다. 외부 영상 검사는 FOCUS_FEED_LIVE_VIDEO=1로 명시 실행하며 일반 CI는 모의 플레이어로 회귀를 확인한다.
