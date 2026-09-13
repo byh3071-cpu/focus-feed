@@ -60,6 +60,7 @@ lint_output.txt
 
 # audit/runtime artifacts (감사·런타임 산출물 — 히스토리에 넣지 않음)
 /artifacts/
+/.cache/focus-runtime/
 *.log
 
 .env

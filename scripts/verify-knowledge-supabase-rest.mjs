@@ -13,6 +13,8 @@ const p0Rpcs = [
   "checkpoint_knowledge_job",
   "complete_knowledge_job",
   "begin_knowledge_approval",
+  "patch_knowledge_studio_draft",
+  "begin_knowledge_studio_approval",
   "complete_knowledge_approval",
   "retry_knowledge_job",
   "invalidate_knowledge_review",

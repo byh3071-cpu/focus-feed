@@ -24,7 +24,7 @@ async function geminiBurstKey(cookieStore: CookieStore): Promise<{ key: string; 
  * Gemini 호출이 있는 서버 액션 진입 시 호출. 초과 시 사용자에게 보여줄 메시지 반환.
  */
 export async function guardGeminiActionRateLimit(
-  kind: "summary" | "insight" | "briefing" | "feed_qa"
+  kind: "summary" | "insight" | "briefing" | "feed_qa" | "studio_chat"
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const cookieStore = await cookies();
   const { key, user } = await geminiBurstKey(cookieStore as CookieStore);

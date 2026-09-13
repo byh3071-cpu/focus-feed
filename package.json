@@ -29,6 +29,11 @@
     "security:knowledge-migrations": "node scripts/verify-knowledge-migration-guard.mjs",
     "vhk:evidence": "npm run vhk -- verify",
     "verify:focus-feed": "node scripts/verify-focus-feed.mjs",
+    "knowledge:draft": "node scripts/knowledge-studio-draft.mjs",
+    "knowledge:agent": "node scripts/knowledge-agent-sidecar.mjs",
+    "local:start": "powershell -NoProfile -File scripts/focus-runtime.ps1 -Mode Start",
+    "local:status": "powershell -NoProfile -File scripts/focus-runtime.ps1 -Mode Status",
+    "test:runtime": "powershell -NoProfile -File scripts/test-focus-runtime.ps1",
     "verify:release": "node scripts/verify-focus-feed.mjs --release",
     "verify:release:app": "node scripts/verify-focus-feed.mjs --release --skip-history",
     "verify:release:history": "npm run security:history"
@@ -47,6 +52,7 @@
     "react-dom": "19.2.3",
     "rss-parser": "^3.13.0",
     "stripe": "^20.4.1",
+    "ws": "^8.21.3",
     "youtube-transcript": "^1.2.1",
     "youtubei.js": "^17.0.1"
   },

@@ -32,7 +32,7 @@ const serialize = (job: JobRow): KnowledgeJobSummary => ({
 export async function GET() {
   const cookieStore = await cookies();
   const user = await getCurrentUserFromCookies(cookieStore);
-  if (!user) return Response.json({ error: "로그인해야 지식 대기열을 볼 수 있어요." }, { status: 401 });
+  if (!user) return Response.json({ error: "로그인해야 지식함을 볼 수 있어요." }, { status: 401 });
   const supabase = getServerSupabaseClient();
   if (!supabase) return Response.json({ error: "지식 대기열 서버 설정이 아직 준비되지 않았어요." }, { status: 503 });
 

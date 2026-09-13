@@ -6,6 +6,10 @@ import {
   isKnowledgeJobsUnavailableError,
   knowledgeJobIsOpen,
   knowledgeJobStatusLabel,
+  knowledgeCaptureAction,
+  knowledgeJobCanOpenStudio,
+  knowledgeJobStudioPath,
+  knowledgeQueueOpenLabel,
   knowledgeCitationSeconds,
   knowledgeCitationUrl,
   mergeKnowledgeJobMaps,
@@ -103,15 +107,35 @@ describe("지식 상태 배치 조회 계약", () => {
       "failed",
       "cancelled",
     ].map((status) => knowledgeJobStatusLabel(status as Parameters<typeof knowledgeJobStatusLabel>[0]))).toEqual([
-      "지식 대기열에 담김",
-      "지식 처리 중",
+      "담김",
+      "처리 중",
       "검토 필요",
       "승인 적재 중",
-      "지식 처리 완료",
+      "적재됨",
       "조치 필요",
       "처리 실패",
       "처리 취소",
     ]);
+  });
+
+  it("담기 CTA는 상태에 따라 접수·대기·작업실 입구로 나뉜다", () => {
+    expect(knowledgeCaptureAction(null)).toEqual({
+      kind: "capture",
+      label: "지식으로 담기",
+      compactLabel: "담기",
+    });
+    expect(knowledgeCaptureAction(job("queued-1", "queued", "2026-08-01T00:02:00.000Z"))).toMatchObject({
+      kind: "busy",
+      compactLabel: "담김",
+    });
+    expect(knowledgeCaptureAction(job("review-1", "review_required", "2026-08-01T00:02:00.000Z"))).toEqual({
+      kind: "open",
+      label: "작업실 열기",
+      compactLabel: "검토",
+      href: knowledgeJobStudioPath("job-review-1"),
+    });
+    expect(knowledgeJobCanOpenStudio("processing")).toBe(false);
+    expect(knowledgeQueueOpenLabel("completed")).toBe("작업실 보기");
   });
 });
 
@@ -285,6 +309,15 @@ describe("검토 상세 공개 계약", () => {
   it("승인 적재 중에도 사용자가 검토 근거를 다시 볼 수 있다", () => {
     expect(parseKnowledgeReviewDetail({
       status: "approving",
+      result: reviewResult,
+      qualityScore: 100,
+      qualityReport: {},
+    })?.summary).toContain("검토 요약");
+  });
+
+  it("적재 완료 작업실에서는 같은 검토 근거를 읽기 전용으로 연다", () => {
+    expect(parseKnowledgeReviewDetail({
+      status: "completed",
       result: reviewResult,
       qualityScore: 100,
       qualityReport: {},
